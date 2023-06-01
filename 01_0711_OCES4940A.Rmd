@@ -1,0 +1,243 @@
+---
+title: <strong>OCES4940A</strong>
+subtitle: "No.1: Introduction to marine ecology and community dynamics"
+author: "Masayuki Ushio<br>(ushio@ust.hk)"
+date: "2023-07-11"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    number_section: true
+toc-title: <br>
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+```
+
+<br>
+<br>
+
+# Basics
+## Perform calculations by entering directly into the console
+
+```{r}
+1+1
+10/2
+5*5
+print("Hello World")
+```
+
+## Assign values to variables
+```{r}
+a <- 10
+b <- 5
+a/b
+```
+
+## Data types
+```{r}
+#### Input data
+num <- 10
+chr <- "ABCDE"
+vec <- c(1, 2, 3, 4, 5, 6)
+lev <- factor(vec, levels=c(1,2,3,4,5,6))
+mat <- matrix(vec, ncol=3)
+lst <- list(mat1=mat, mat2=mat)
+dat <- data.frame(mat)
+
+# Show data type
+class(num)
+class(chr)
+class(vec)
+class(lev)
+class(mat); class(lst); class(dat)
+
+# Convert data type
+num_chr <- as.character(num)
+num_vec <- as.vector(num)
+vec_mat <- as.matrix(vec)
+dat_mat <- as.matrix(dat)
+```
+
+## Data generation
+```{r}
+data <- c(173, 167, 164, 174, 169, 174, 181, 162, 175, 155)
+```
+
+
+## Summary statistics
+```{r}
+summary(data)
+mean(data)
+median(data)
+```
+
+
+## Visualize data
+```{r}
+# Create a histogram
+hist(data, main="Height Demo Data", xlab="Height (cm)", ylab="Frequency")
+```
+
+## Visualize data with various colors
+```{r}
+par(mfrow = c(2,2))
+hist(data, main="Height Demo Data", col="grey")
+hist(data, main="Height Demo Data", col="red3")
+hist(data, main="Height Demo Data", col="green3")
+hist(data, main="Height Demo Data", col="royalblue")
+```
+
+
+# Biodiversity
+## Generate community data
+```{r}
+# Prepare each species abundance
+rabit <- c(7, 10, 5, 8)
+horse <- c(3, 0, 3, 1)
+wolf <- c(0, 0, 2, 1)
+
+# Generate data frame
+df <- data.frame(sp1 = rabit, sp2 = horse, sp3 = wolf)
+```
+
+
+## Species richness
+```{r}
+richness <- rowSums(df > 0)
+```
+
+## Shannon index
+$$
+H'=-\sum_{i=1}^{R}{p_i \ln{p_i}}
+$$
+, where $p_i$ and $R$ indicate the relative abundance of species $i$ and species richness, respectively.
+
+
+```{r}
+# Calculate relative abundance
+rel_df <- df/rowSums(df)
+
+# Calculate Shannon index
+## Community 1
+### Simple summation
+Sha_com1 <- - (( rel_df[1,1] * log(rel_df[1,1]) ) + ( rel_df[1,2] * log(rel_df[1,2]) ))
+
+### For loop
+Sha_com1 <- 0
+for(i in 1:2) {
+  Sha_com1 <- Sha_com1 - ( rel_df[1,i] * log(rel_df[1,i]) )
+}
+
+## Community 2
+Sha_com2 <- - (rel_df[2,1] * log(rel_df[2,1]))
+
+## Community 3
+Sha_com3 <- 0
+for(i in 1:3) {
+  Sha_com3 <- Sha_com3 - (rel_df[3,i] * log(rel_df[3,i]))
+}
+
+## Community 4
+Sha_com4 <- 0
+for(i in 1:3) {
+  Sha_com4 <- Sha_com4 - ( rel_df[4,i] * log(rel_df[4,i]) )
+}
+
+# Show all
+Sha_com1; Sha_com2; Sha_com3; Sha_com4
+```
+
+
+## (Gini) Simpson index
+$$
+1-\lambda = 1-\sum_{i=1}^{R}{p_i^2}
+$$
+
+```{r}
+## Community 1
+simp_com1 <- 1 - sum(rel_df[1,]^2)
+## Community 2
+simp_com2 <- 1 - sum(rel_df[2,]^2)
+## Community 3
+simp_com3 <- 1 - sum(rel_df[3,]^2)
+## Community 4
+simp_com4 <- 1 - sum(rel_df[4,]^2)
+
+# Show all
+simp_com1; simp_com2; simp_com3; simp_com4
+```
+
+
+# Population dynamics
+## Exponential Growth Model
+$$
+N_{t=0} = N_0　\\
+N_{t+1} - N_t = rN_t
+$$
+```{r}
+# Initial abundance
+N0 <- 10
+
+# Growth rate
+r <- 0.5
+
+# Set time limit
+t_max <- 20
+
+# Prepare an object that stores results
+Nt <- rep(0, t_max)
+
+# Growth model
+Nt[1] <- N0
+for (t in 1:t_max) {
+  Nt[t+1] <- Nt[t] + r*Nt[t]
+}
+
+# Visualize the result
+plot(Nt, type = "b")
+```
+
+
+## Discrete Logistic Model
+$$
+N_{t=0} = N_0　\\
+N_{t+1} - N_t = rN_t(1-\frac{N_t}{K})
+$$
+
+```{r}
+# Initial abundance
+N0 <- 10
+
+# Growth rate
+r <- 0.5
+
+# Carrying Capacity
+K <- 100
+
+# Set time limit
+t_max <- 20
+
+# Prepare an object that stores results
+Nt <- rep(0, t_max)
+
+# Growth model
+Nt[1] <- N0
+for (t in 1:t_max) {
+  Nt[t+1] <- Nt[t] + r*Nt[t]*(1-Nt[t]/K)
+}
+
+# Visualize the result
+plot(Nt, type = "b")
+```
+
+
