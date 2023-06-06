@@ -1,0 +1,273 @@
+---
+title: <strong>OCES4940A</strong>
+subtitle: "No.2: Fish population monitoring and its managemen<br><br> No.2-1: R Basics, again"
+author: "<br>Masayuki Ushio<br>(ushio@ust.hk)"
+date: "2023-07-13"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    number_section: true
+toc-title: <br>
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+```
+
+<br>
+<br>
+
+# Reference
+Contents in this tutorial generally follows "Introductory Fisheries Analyses with R" by Derek H. Ogle (2015). The data and R scripts are available at https://derekogle.com/IFAR/ and https://github.com/droglenc/IFAR (GPL-2.0 license)
+
+
+# R Basics, again
+## Load FSA package (FSA: Simple Fisheries Stock Assessment Methods)
+
+```{r}
+# Install a new package
+#install.packages("FSA")
+
+# Load pacakge
+library(FSA)
+```
+
+## Basic calculations
+```{r}
+# This is a whole-line comment
+3+2*7  # This is a post-line comment
+
+# Assign value to an object
+tmp <- 2*6
+tmp2 = 2*6 # Another expression
+
+# Check the content
+tmp
+tmp2
+
+# If you use a parenthesis, the command is executed and the result is displayed
+( tmp <- 7+4*2 )
+
+# Multiplication
+tmp*3
+
+# Logarithm
+log10(1000)
+
+log(1000)              # base= set by default (to exp(1))
+log(1000,base=10)      # base= set explicitly, by name
+log(1000,10)           # base= set explicitly, by position
+
+# Display format
+num <- 123456789
+format(num,scientific=FALSE,digits=4)
+format(num,scientific=TRUE,digits=4)
+```
+
+## Data types
+```{r}
+# Vector
+( lens <- c(75,87,45,63,77,93) ) # Integer or numeric
+( wts <- c(13,14.2,7.8,9,10.1,10.1) ) # Numeric
+( gender <- c("M","F","F","M","M","F")) # Character
+( mat <- c(TRUE,TRUE,FALSE,FALSE,FALSE,TRUE) ) # Logical
+
+# Check class
+class(lens)
+class(wts)
+class(gender)
+class(mat)
+```
+
+## How to access each element
+```{r}
+# How to access each element
+## Take the 3rd value
+lens
+lens[3]
+
+## Take the 1st and 3rd values
+lens[c(1,3)]
+
+## Remove the 1st and 3rd values
+lens[-c(1,3)]
+
+## Other examples
+hab <- c(35, 45, 20)
+names(hab) <- c("rocky", "sandy", "silty")
+
+## The 2nd element
+hab[2]
+
+## Specify the name of a value
+hab["sandy"]
+```
+
+
+## Some calculations
+```{r}
+# Some calculations
+lens/25.4
+lens+10
+lens^3
+
+lens+wts
+wts/(lens^3)*10000
+
+lens + c(10,100)
+lens + c(1,10,100,1000)
+```
+
+## Handling matrix and data frame
+```{r}
+# Manipulate data class 1
+( gender1 <- factor(gender) )
+class(gender1)
+
+( gender2 <- factor(gender,levels=c("M","F")) )
+
+as.numeric(gender1)
+as.numeric(gender2)
+
+# Manipulate data class 2
+rbind(lens,wts)
+( lw <- cbind(lens,wts) )
+
+rbind(lens,gender)
+rbind(lens,mat)
+rbind(gender,mat)
+
+# Access elements of a matrix
+lw[[1,2]]          # 1st row, 2nd column (no name for element)
+lw[c(1,3),2]       # 1st & 3rd rows, 2nd column
+lw[-c(1,3),2]      # exclude 1st & 3rd rows, 2nd column
+
+lw[1,]                            # 1st row
+lw[,1]                            # 1st column
+lw[,"wts"]                        # wts column
+
+# Data frame
+( df <- data.frame(lens,wts,gender,mat) )
+
+## Access elements of a data frame
+df[1,2]                           # 1st row, 2nd column
+df[1,]                            # 1st row/individual
+df[,2]                            # 2nd column/variable
+df[,"wts"]                        # wts column/variable
+
+df$lens
+df$gender
+
+class(df$lens)
+df$lens[c(1,3)]
+df$lens/25.4
+
+log10(df$lens)
+```
+
+# Define a function, "for loop", and "if else" statements
+## Define a function
+```{r}
+# Define a simple function
+eqn1 <- function(x,y) {
+  # simple calculation
+  res <- x + y
+  # return the result
+  return(res)
+}
+
+eqn1(10, 100)   # 10 + 100
+```
+
+
+## For loop
+```{r}
+# Create vector of values
+tmp <- c(7,2,3,5,4)
+
+# Use loop to show the values in the vector
+for(i in 1:5) {
+  print(tmp[i])
+}
+```
+
+## Logical statements
+```{r}
+z <- 1
+
+# Equal to
+z == 1
+
+# Not equal to
+z != 1
+
+# Less than
+z < 10
+
+# Less than or equal to
+z <= 10
+z <= 1
+z <= 0.99999
+  
+# Greater than
+z > 10
+
+# Greater than or equal to
+z >= 10
+z >= 1
+z >= 0.99999
+```
+
+
+
+## If else statement
+```{r}
+# If statement
+z <- 1
+
+
+## method 1
+if (z > 0) print("z is greater than 0")
+
+## method 2
+if (z > 0) { print("z is greater than 0") }
+
+## method 3
+if (z > 0) {
+  print("z is greater than 0")
+}
+
+
+# If else statement
+## method 1
+if (z > 0) print("z is greater than 0") else print("z is not greater than 0")
+
+# method 2
+if (z > 0) { print("z is greater than 0") } else { print("z is not greater than 0") }
+
+# method 3
+if (z > 0) {
+  print("z is greater than 0")
+} else {
+  print("z is not greater than 0")
+  }
+
+
+# If else if statement
+if (z > 0) {
+  print("z is greater than 0")
+} else if (z == 0) {
+  print("z is 0")
+  } else {
+  print("z is not greater than 0")
+}
+```

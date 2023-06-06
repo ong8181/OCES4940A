@@ -48,4 +48,8 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+# Added
 .DS_store
+data/
+01_0711_OCES4940A*/
+02_0713_1_OCES4940A*/

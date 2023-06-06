@@ -132,26 +132,14 @@ rel_df <- df/rowSums(df)
 ### Simple summation
 Sha_com1 <- - (( rel_df[1,1] * log(rel_df[1,1]) ) + ( rel_df[1,2] * log(rel_df[1,2]) ))
 
-### For loop
-Sha_com1 <- 0
-for(i in 1:2) {
-  Sha_com1 <- Sha_com1 - ( rel_df[1,i] * log(rel_df[1,i]) )
-}
-
 ## Community 2
 Sha_com2 <- - (rel_df[2,1] * log(rel_df[2,1]))
 
 ## Community 3
-Sha_com3 <- 0
-for(i in 1:3) {
-  Sha_com3 <- Sha_com3 - (rel_df[3,i] * log(rel_df[3,i]))
-}
+Sha_com3 <- - ((rel_df[3,1] * log(rel_df[3,1])) + (rel_df[3,2] * log(rel_df[3,2])) + (rel_df[3,3] * log(rel_df[3,3])))
 
 ## Community 4
-Sha_com4 <- 0
-for(i in 1:3) {
-  Sha_com4 <- Sha_com4 - ( rel_df[4,i] * log(rel_df[4,i]) )
-}
+Sha_com4 <- - ((rel_df[4,1] * log(rel_df[4,1])) + (rel_df[4,2] * log(rel_df[4,2])) + (rel_df[4,3] * log(rel_df[4,3])))
 
 # Show all
 Sha_com1; Sha_com2; Sha_com3; Sha_com4
@@ -195,7 +183,7 @@ r <- 0.5
 t_max <- 20
 
 # Prepare an object that stores results
-Nt <- rep(0, t_max)
+Nt <- rep(0, t_max+1)
 
 # Growth model
 Nt[1] <- N0
@@ -228,7 +216,7 @@ K <- 100
 t_max <- 20
 
 # Prepare an object that stores results
-Nt <- rep(0, t_max)
+Nt <- rep(0, t_max+1)
 
 # Growth model
 Nt[1] <- N0
@@ -238,6 +226,48 @@ for (t in 1:t_max) {
 
 # Visualize the result
 plot(Nt, type = "b")
+```
+
+
+
+
+## A Coupled Logistic Model
+$$
+X_{t+1} = X_t\{r_x - r_x X_t - \beta_{x,y} Y_t\}　\\
+Y_{t+1} = Y_t\{r_y - r_y Y_t - \beta_{y,x} X_t\}
+$$
+
+
+```{r}
+# Initial abundance
+X0 <- 0.5
+Y0 <- 0.5
+
+# Growth rate
+rx <- 3.8
+ry <- 3.5
+bxy <- 0.02
+byx <- 0.1
+
+# Set time limit
+t_max <- 100
+
+# Prepare an object that stores results
+Xt <- rep(0, t_max+1)
+Yt <- rep(0, t_max+1)
+
+# Growth model
+Xt[1] <- X0
+Yt[1] <- Y0
+for (t in 1:t_max) {
+  Xt[t+1] <- Xt[t] * (rx - rx * Xt[t] - bxy * Yt[t])
+  Yt[t+1] <- Yt[t] * (ry - ry * Yt[t] - byx * Xt[t])
+}
+
+# Visualize the result
+plot(Xt, type = "l", col = "blue", ylab = "Xt (blue) or Yt (red)", xlab = "Time")
+lines(Yt, col = "red")
+
 ```
 
 
