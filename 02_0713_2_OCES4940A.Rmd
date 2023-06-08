@@ -1,0 +1,296 @@
+---
+title: <strong>OCES4940A</strong>
+subtitle: "No.2: Fish population monitoring and its managemen<br><br> No.2-2: Data manipulation and plotting"
+author: "<br>Masayuki Ushio<br>(ushio@ust.hk)"
+date: "2023-07-13"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    number_section: true
+toc-title: <br>
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+```
+
+<br>
+<br>
+
+# Reference
+Contents in this tutorial generally follows "Introductory Fisheries Analyses with R" by Derek H. Ogle (2015). The data and R scripts are available at https://derekogle.com/IFAR/ and https://github.com/droglenc/IFAR (GPL-2.0 license)
+
+
+# Preparations
+## Load packages
+
+```{r}
+# Install a new package
+#install.packages("FSA")
+#install.packages("tidyverse")
+
+# Load package
+library(tidyverse) # tidyverse is a collection of useful packages
+library(FSA)
+```
+
+## Set working directory
+```{r, results='hide'}
+# Check current working directory
+getwd()
+
+# Set working directory
+# If you are using RStudio, your working directory will be your R file location
+#setwd("XXXX")
+```
+
+## Load data
+Please follow below:
+1. Download demo data from https://derekogle.com/IFAR/scripts/inchBio.csv.
+1. Create `data` folder in your working directly.
+1. Place `inchBio.csv` in `data` folder.
+1. Then, execute the following commands
+```{r}
+# Try some different functions
+## read.table()
+bio <- read.table("data/inchBio.csv", sep=",", header=TRUE)
+
+## read.csv()
+bio <- read.csv("data/InchBio.csv")
+
+## readLines()
+## (a bit unusual way...)
+# tmp <- readLines("data/inchBio.csv",n=11)
+# tmp2 <- tmp[1]
+# for (i in 2:11) tmp2 <- rbind(tmp2,tmp[i])
+# dimnames(tmp2) <- list(rep("", dim(tmp2)[1]), rep("", dim(tmp2)[2]))
+# print(tmp2, quote=FALSE)
+```
+
+
+## Check data
+```{r}
+# Check structure
+str(bio)
+
+# Check head and tail of the data
+headtail(bio,n=4)
+
+# Load data in the FSA package
+data(Mirex)
+
+head(Mirex, n=3)
+tail(Mirex, n=3)
+```
+
+
+# Data manipulations
+## Data manipulation 1 using `tidyverse` 
+```{r}
+# filter() function: Select rows
+bg <- filter(bio, species=="Bluegill")
+head(bg, n = 3)
+
+tmp <- filter(bio, species=="Yellow Perch", tl>=200)
+head(tmp, n = 3)
+
+## %in%
+## "A %in% B" means "TRUE if A is in B".
+tmp <- filter(bio, species %in% c("Black Crappie","Bluegill","Pumpkinseed"))
+
+# select() function: Select columns
+tmp <- select(bio, species, tl, w)
+head(tmp, n = 3)
+
+# rename() function: Change column names
+tmp <- rename(bio,length = tl, weight = w)
+head(tmp, n = 3)
+
+# mutate() function: Add new columns
+tmp <- mutate(bio, logL = log10(tl),logW = log10(w))
+head(tmp, n = 3)
+
+# arrange() function: Sort rows according to columns
+tmp <- bio %>% arrange(tl) # Ascending order
+head(tmp, n = 3)
+
+tmp <- bio %>% arrange(desc(tl)) # Descending order
+head(tmp, n = 3)
+
+# %>% ("pipe" operator in magrittr package)
+bg <- bio %>%
+  filter(species == "Bluegill") %>%
+  select(-tag, -scale) %>%
+  mutate(logL = log10(tl),
+         logW = log10(w),
+         lcat = lencat(tl,w=10)) %>%
+  arrange(netID,tl)
+
+head(bg,n=3)
+
+## lencat() creates "length category" and "w" is the width of the category
+## Examples:
+lencat(1:10, w = 1)
+lencat(1:10, w = 2)
+lencat(1:10, w = 5)
+
+# Processing without %>%
+## Need many temporal objects
+tmp1 <- filter(bio, species == "Bluegill")
+tmp2 <- select(tmp1, -tag, -scale)
+tmp3 <- mutate(tmp2, logL = log10(tl), logW = log10(w), lcat = lencat(tl, w=10))
+bg2 <- arrange(tmp3, netID, tl)
+
+head(bg,n=3)
+head(bg2,n=3)
+```
+
+## Data manipulation 2 using `tidyverse` 
+### Load other data
+1. Download demo data from https://derekogle.com/IFAR/scripts/inchGear.csv.
+1. Download demo data from https://derekogle.com/IFAR/scripts/inchAge.csv.
+1. Place `inchGear.csv` and `inchAge.csv` in `data` folder.
+1. Then, execute the following commands
+```{r}
+# Load data
+gear <- read.csv("data/inchGear.csv")
+
+# Check data
+head(gear,n=3)
+head(bio,n=3)          # reminder of what bio looks like
+
+# Manipulate data
+bio2 <- left_join(gear, bio, by = "netID") %>%
+  rename(effort = unitsOfEffort) %>%
+  select(netID, netType, year, effort, fishID, species, tl)
+
+headtail(bio2)
+
+
+# Check what you did using left_join()
+## Help
+?left_join
+
+## Individual process
+left_join(gear, bio, by="netID") %>% headtail
+left_join(gear, bio) %>% headtail
+#left_join(gear %>% select(-netID), bio) %>% headtail
+
+
+# Load and check data
+age <- read.csv("data/inchAge.csv")
+head(age,n=4)
+
+# Merge data using merge() function
+age2 <- merge(bio2, age) %>%
+  select(-c(netID, netType, effort, ageCap))
+head(age2,n=4)
+
+# Check what you did using merge()
+## Help
+?merge
+
+## Individual process
+df1 <- data.frame(id = 1:10, a = 11:20)
+df2 <- data.frame(id = 1:12, b = c(NA, 13:23))
+merge(df1, df2)
+
+
+# Other useful functions (will explain when it shows up)
+#pivot_longer()
+#pivot_wider()
+#group_by()
+#summarize()
+```
+
+**There are so many functions and pacakges, so it is impossible to remember and master everything. Just learn how to learn new functions and packages.**
+
+# Plotting
+## Install and load new pacakges
+```{r}
+#install.packages("FSAdata")
+library(FSAdata)
+
+#install.packages("plotrix")
+library(plotrix)
+```
+
+## Load some internal data
+```{r}
+# Load some internal data
+data(BullTroutRML1)
+head(BullTroutRML1,n=3)
+
+# The following data will not be used for plotting
+#data(BullTroutRML2)
+#head(BullTroutRML2,n=3)
+
+#data(BloaterLH)
+#head(BloaterLH,n=3)
+```
+
+## plot() function
+```{r}
+plot(mass ~ fl, data = BullTroutRML1)
+
+# Different methods
+#plot(BullTroutRML1$mass ~ BullTroutRML1$fl)
+#plot(BullTroutRML1$fl, BullTroutRML1$mass)
+```
+
+```{r}
+plot(mass ~ fl,
+     data = BullTroutRML1,
+     ylim = c(0, 1600), xlim = c(0, 500),
+     ylab = "Weight (g)", xlab = "Fork Length (mm)")
+```
+```{r}
+plot(mass ~ fl, # variables
+     data = BullTroutRML1, # data
+     ylim = c(0, 1600), xlim = c(0, 500), # plot range
+     ylab = "Weight (g)", xlab = "Fork Length (mm)", # axis label
+     pch = 19) # point type
+```
+
+
+## ggplot() function
+```{r}
+# Load ggplot2 library
+#library(ggplot2) # Not necessary becuase it is included in tidyverse package
+
+# Basic usage
+ggplot(data = BullTroutRML1, aes(x = fl, y = mass)) +
+  geom_point()
+
+# Using pipe
+BullTroutRML1 %>%
+  ggplot(aes(x = fl, y = mass)) +
+  geom_point()
+```
+
+```{r}
+# Add layers
+BullTroutRML1 %>%
+  ggplot(aes(x = fl, y = mass)) +
+  geom_point() +
+  xlab("Fork length (mm)") +
+  ylab("Weight (g)")
+```
+```{r}
+# Add layers
+BullTroutRML1 %>%
+  ggplot(aes(x = fl, y = mass)) +
+  geom_point() +
+  stat_smooth() +
+  xlab("Fork length (mm)") +
+  ylab("Weight (g)")
+```

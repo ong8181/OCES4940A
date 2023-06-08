@@ -1,0 +1,375 @@
+---
+title: <strong>OCES4940A</strong>
+subtitle: "No.2: Fish population monitoring and its managemen<br><br> No.2-3: Estimating fish parameters (age, growth, and mortality)"
+author: "<br>Masayuki Ushio<br>(ushio@ust.hk)"
+date: "2023-07-13"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    number_section: true
+toc-title: <br>
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+```
+
+<br>
+<br>
+
+# Reference
+
+Contents in this tutorial generally follows "Introductory Fisheries Analyses with R" by Derek H. Ogle (2015). The data and R scripts are available at https://derekogle.com/IFAR/ and https://github.com/droglenc/IFAR (GPL-2.0 license)
+
+
+# Preparations
+
+## Load packages
+
+```{r}
+# Install a new package
+#install.packages("FSA")
+#install.packages("tidyverse")
+
+# Load package
+library(tidyverse) # tidyverse is a collection of useful packages
+library(FSA)
+```
+
+## Set working directory
+```{r, results = "hide"}
+# Check current working directory
+getwd()
+
+# Set working directory
+# If you are using RStudio, your working directory will be your R file location
+#setwd("XXXX")
+```
+
+# Age
+## Age comparison
+### Load data
+1. Download demo data from https://derekogle.com/IFAR/scripts/ShadCR.csv.
+1. Create `data` folder in your working directly.
+1. Place `ShadCR.csv` in `data` folder.
+```{r}
+# Load data
+## Data in from McBride et al. (2005)
+## https://doi.org/10.1577/1548-8446(2005)30[10:TTVOCM]2.0.CO;2
+shad <- read.csv("data/ShadCR.csv")
+
+# Check data
+headtail(shad)
+
+# Notes
+## trueAge: The known fish age (fish individuals were marked and their ages were known)
+## The estimated age variables are labeled with ager,
+## a letter for the three biologists (A, B, or C) and
+## a number for which time the scale was interpreted (1 or 2).
+## Some biologists chose not to assign an age to some scales
+```
+
+### Visualize the bias in age estimation (Age-bias plot)
+This is visualization of the first measurement of Scientist A.
+```{r}
+# Simple plot
+plot(agerA1 ~ trueAge, data = shad)
+abline(0, 1, lty = 2)
+
+# ggplot
+shad %>% ggplot(aes(x = trueAge, y = agerA1)) +
+  geom_point() + stat_smooth(method = "lm")
+
+# Use ageBias() function in FSA pacakge
+ab.tA1 <- ageBias(agerA1~trueAge,data=shad)
+plot(ab.tA1, col.CIsig="black")
+summary(ab.tA1,what="bias")
+```
+
+You may visualize the bias of the other measurements (e.g., agerA2, agerB1, ...). There are other ways to evaluate the performance of age estimation (e.g., precision, Bland-Altman plot, ...), but we will skip those here. If you are interested, please read the Chapter 4 of the reference book.
+
+## Age-length relationship
+The ages of fish are important, but estimating fish ages is labor-intensive work. As there is usually a strong positive relationship between age and fish length, the length could be an index of fish age (see the Chapter 5 of the reference book).
+
+(From Chapter 5, Derek 2015 " Introductory Fisheries Analyses with R, p. 87")
+" _..., there is usually a strong relationship between length and age, and measuring the length of a large number of fish is relatively easy. Thus, the age structure for a large sample of fish can be reliably1 estimated by summarizing the relationship between age and length for a subsample of fish and then applying this summary to the entire sample._ "
+
+
+### Load data
+1. Download demo data from https://derekogle.com/IFAR/scripts/CreekChub.csv.
+1. Place `CreekChub.csv` in `data` folder.
+```{r}
+# Load data
+cc <- read.csv("data/CreekChub.csv")
+
+# Add length class
+cc <- cc %>% mutate(lcat10 = lencat(len,w = 10))
+
+# Check data
+headtail(cc)
+```
+
+
+### Visualizing the age-length relationship
+
+#### Simple visualization
+
+```{r}
+# Base function
+plot(age ~ len, data = cc)
+plot(age ~ lcat10, data = cc)
+
+# ggplot2 version
+cc %>% ggplot(aes(x = lcat10, y = age)) +
+  geom_point() + stat_smooth()
+```
+
+#### Use FSA functions
+
+```{r}
+# Extract "aged" fish
+cc.aged <- filter(cc,!is.na(age))
+headtail(cc.aged)
+
+# Make the conditional proportion table
+alk.freq <- xtabs(~ lcat10 + age, data = cc.aged) # Cross-table
+alk <- prop.table(alk.freq, margin = 1)
+round(alk,3)    # rounded for display purposes only
+
+# Contour plot
+alkPlot(alk,type = "area", pal = "gray", showLegend=TRUE,
+        leg.cex = 0.7, xlab = "Total Length (mm)")
+
+# Bubble plot
+alkPlot(alk, type = "bubble", xlab = "Total Length (mm)")
+```
+
+### Assign individual ages
+
+```{r}
+# Extract "unaged" fish
+cc.unaged <- filter(cc,is.na(age))
+headtail(cc.unaged)
+
+# Model "unaged" fish
+cc.unaged.mod <- alkIndivAge(alk, age ~ len, data=cc.unaged)
+head(cc.unaged.mod)
+
+# Combine "aged" and "unaged" data
+cc.fnl <- rbind(cc.aged, cc.unaged.mod)
+head(cc.fnl)
+
+# Calculate the summary
+cc.sumlen <- cc.fnl %>% group_by(age) %>%
+  summarize(n = validn(len),
+            mn = mean(len,na.rm=TRUE),
+            sd = sd(len,na.rm=TRUE),
+            se = se(len,na.rm=TRUE)) %>%
+  as.data.frame()
+cc.sumlen
+
+# Visualize (base functions)
+plot(len ~ age, data = cc.fnl, pch = 19, col=rgb(0,0,0,1/10),
+     xlab="Age", ylab = "Total Length (mm)", ylim = c(0,205))
+lines(mn ~ age, data = cc.sumlen, lwd = 2, lty = 2)
+```
+
+# Growth
+
+## Load data
+
+1. Download demo data from https://derekogle.com/IFAR/scripts/BlackDrum2001.csv.
+1. Place `BlackDrum2001.csv` in `data` folder.
+```{r}
+# Load data
+bdmf <- read.csv("data/BlackDrum2001.csv") %>%
+  filter(otoage<50,sex %in% c("male","female")) %>%
+  select(-c(spname,day,weight))
+
+# Check data
+headtail(bdmf,n=2)
+
+# Extract male data
+bdm <- filter(bdmf, sex=="male")
+```
+`bdm$tl` is the total length and `bdm$otoage` is the age estimated by otolith.
+
+## Visualize nonlinear regressions
+
+Here, we use von Bertalanffy growth function (VBGF) to model fish growth. The most common representation of the VBGF is
+$$
+E[L|t] = L_\infty(1 - e^{-K(t - t_0)}),
+$$
+where $E(L|t)$ is the mean length-at-age $t$ and $L_\infty$, $K$, and  $t_0$ are parameters to be estimated. $L_\infty$ is the maximum mean length (not the maximum length of an individual), $K$ describes how quickly fish grow (but $K$ is not a growth rate), and $t_0$ is the time (or age) when $L=0$ ($x$-intercept; it does not have a biological meaning). 
+
+```{r}
+# Define VBGF formula
+vbgf_formula <- function(t, Linf, K, t0) { Linf * (1 - exp(-K * (t - t0))) }
+
+# Do nonlinear regression
+## Total length - otolith age regression
+vbgf_fit <- nls(tl ~ vbgf_formula(otoage, Linf, K, t0), data = bdm, start = list(Linf = 1192, K = 0.1924, t0 = -0.401))
+## nls() function finds the solution by iterative processes (not by an analytical solution). Thus, the starting values would play an important role, but determining the starting value is sometimes tricky. Here we just use a function prepared in the FSA package. vbStarts(tl~otoage,data=bdm,type="typical"). Or, you can manually find a set of values that are close to the optimal values.
+
+# Summarize results
+summary(vbgf_fit)
+# Get coefficients
+coef(vbgf_fit)
+# Linf = 1196.7194004
+# K = 0.1418265
+# t0 = -1.5943434
+
+# Generate predictions based on VBGF to visualize the nonlinear regression
+new_x <- seq(min(bdm$otoage), max(bdm$otoage), by = 0.2)
+pred_df <- data.frame(otoage = new_x)
+pred_df$tl <- predict(vbgf_fit, newdata = pred_df)
+#pred_df$tl <- 1196.7194004 * (1 - exp(-0.1418265 * (pred_df$otoage + 1.5943434)))
+
+# Visualize using ggplot
+bdm %>% ggplot(aes(x = otoage, y = tl)) +
+  geom_point() +
+  geom_line(data = pred_df, aes(x = otoage, y = tl), color = "royalblue") +
+  xlab("Age") + ylab("Length")
+  
+
+# Visualize (base functions)
+if(FALSE) {
+  # FSA package version
+  vbT <- vbFuns("typical", simple = FALSE) # Define VBGF formula
+  fitT <- nls(tl~vbT(otoage,Linf,K,t0),data=bdm,start=vbStarts(tl~otoage,data=bdm,type="typical"))
+  sumT <- summary(fitT,correlation=TRUE)
+  coefT <- coef(fitT)
+
+  # Generate plot
+  plot(tl ~ otoage, data = bdm_sub,
+         pch=19, ylab="Total Length (mm)",
+         yaxt="n", xlab="Age", xaxt="n")
+  curve(vbT(x, Linf = coef(fitT)), from = -2, to = 25, lwd=2, add = TRUE)
+}
+```
+
+# Mortality
+
+From Chapter 11 of the reference book (p.203): <br>
+"_Mortality rates are a measure of the rate at which fish disappear from a population. A primary goal for management of exploited populations is to regulate harvest such that the total mortality rate is below that which allows the population to persist. Thus, estimates of mortality rates are critical information for fish managers._" 
+
+## Total mortality definitions
+
+Total annual mortality rate ($A$) is the proportion of fish in a closed population. Total annual survival sate ($S$) is the proportion of the same population that survive during the year. Thus, $A + S = 1$. If the catch of fish is proportional to the size of the population, then A is:
+$$
+A = \frac{C_t + C_{t+1}}{C_t} = 1 - \frac{C_{t+1}}{C_t},
+$$
+where $C_t$ is the catch of fish at time $t$ (From Chapter 11 of the reference book, p.203). This expression is easy to understand, but we can think a bit more.
+
+Let's express population dynamics using an exponential model:
+$$
+C_{t+1} = C_t e^{-Zt},
+$$
+where $Z$ is an index of mortality.
+
+The example behavior of this model is like this (i.e., an exponential decay model):
+
+```{r}
+# Define model (Ct = 1, z = 0.5)
+m <- function(t) 1 * exp(-0.5*t)
+
+# Visualize behavior
+curve(m, from = 0, to = 10, xlab = "Time", ylab = "Population")
+```
+If we take natural logarithm of the equation, then:
+$$
+\frac{C_{t+1}}{C_t} = e^{-Zt}, \\
+\ln{\frac{C_{t+1}}{C_t}} = -Zt, \\
+\ln{C_{t+1}} - \ln{C_t} = -Zt.
+$$
+
+Therefore, $Zt = \ln{C_t} - \ln{C_{t+1}}$ and $Z$ is the instantaneous total mortality rate. Also, $A$ and $Z$ are directly related as follows:
+$$
+A = 1 - \frac{C_{t+1}}{C_t}, \\
+A = 1 - e^{-Zt}.
+$$
+
+If $Z = 0.693$, total population mortality per unit time is 50.0% ($A = 1 - e^{-0.693t}$).
+
+## Estimating mortality from data
+
+```{r}
+# Generate data
+## Brook Trout Catch data in Tobin Harbor (Michigan) (Quinlan 1999)
+bkt <- data.frame(age = 0:6, ct = c(39,93,112,45,58,12,8))
+
+## Specify data for mortality estimation
+bkt$used <- c(F, F, T, T, T, T, T)
+
+## Add log-transformed ct
+bkt$lnct <- log(bkt$ct)
+
+## Visualize data (log-transformed)
+bkt %>% ggplot(aes(x = age, y = lnct, color = used)) +
+  geom_point() + xlab("Age (yrs") + ylab("Log(Catch)")
+
+## Perform linear regression to estimate average mortality
+mort_lm <- bkt %>% filter(age >= 2) %>% lm(lnct ~ age, data = .)
+## Because log(Ct+1) - log(Ct) indicates "slope" of linear regression, which is a survival rate.
+coef(mort_lm)
+
+## Visualize linear regression
+bkt %>% ggplot(aes(x = age, y = lnct, color = used)) +
+  geom_point() + xlab("Age (yrs") + ylab("Log(Catch)") + 
+  geom_abline(slope = coef(mort_lm)[2], intercept = coef(mort_lm)[1])
+
+## Mortality estimated by this method is 48.3%
+1 - exp(coef(mort_lm)[2])
+
+# Chapman-Robson Method implemented in the FSA package
+thcr <- chapmanRobson(ct~age,data=bkt,ages2use=2:6)
+
+## Mortality estimated by this method is 50.5% (slightly higher than the linear regression method)
+cbind(summary(thcr),confint(thcr))
+
+# Visualize results
+plot(thcr)
+
+
+```
+
+## Appendix: Chapman-Robson Method (Chapman & Robson 1960)
+
+The Chapman-Robson estimate of the annual survival rate ($\hat{S}$) is:
+$$
+\hat{S} = \frac{T}{n+T-1},
+$$
+where $T$ is the sum of the recorded ages of fish (i.e., the sum of catch multiplied by recorded age) and $n$ is the total number of fish observed. Hoenig et al. (1983) later showed that an unbiased estimate of $Z$ could be obtained from $\hat{S}$ by calculating
+$$
+\hat{Z} = - \log{\hat{S}} - \frac{(n-1)(n-2)}{n(T+1)(n+T-1)}.
+$$
+
+Thus, in the above example,
+$$
+n = 112 + 45 + 58 + 12 + 8 = 235, \\
+T = 112 \times 0 + 45 \times 1 + 58 \times 2 + 12 \times 3 + 8 \times 4 = 229.
+$$
+Therefore,
+
+$$
+\hat{S} = \frac{T}{n+T-1} = \frac{229}{235+229-1} = \frac{229}{463} \approx 0.4946,
+$$
+and
+
+$$
+\hat{Z} = -\log{\frac{229}{463}} - \frac{(235-1)(235-2)}{235 \times (229+1)(235+229-1)} \approx 0.7018.
+$$
+These values equal to the output of `summary(thcr)`.
+```{r}
+summary(thcr)
+```
+
